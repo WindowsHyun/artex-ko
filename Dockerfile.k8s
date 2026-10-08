@@ -1,16 +1,21 @@
 # syntax=docker/dockerfile:1
-# Jenkins(k3s dind)용 전체 빌드 이미지: 프론트엔드 정적 빌드 + Go 단일 바이너리 + 런타임.
-# 상류 Dockerfile은 사전 컴파일된 바이너리만 넣는 실행용이라, 여기서 빌드까지 포함한다.
+# Jenkins(k3s dind)용 전체 빌드 이미지: 프론트엔드 정적 빌드 + Go 단일 바이너리 + Playwright/Chromium 포함.
 FROM golang:1.26-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends rsync curl ca-certificates && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
 
+# Playwright/Chromium을 빌드 단계에서 미리 설치 (네트워크가 되는 단계에서)
+RUN npm install -g @playwright/mcp@latest @playwright/cli@latest playwright@latest \
+    && playwright-cli --help \
+    && playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /src
 COPY . /src/
 
-# 1) Next.js 정적 내보내기 (devDependencies 포함: NODE_ENV=production 이면 모듈 누락)
+# 1) Next.js 정적 내보내기 (devDependencies 포함)
 WORKDIR /src/web
 ENV NPM_CONFIG_CACHE=/tmp/.npm
 RUN npm ci --include=dev && NEXT_EXPORT=1 npm run build
@@ -28,10 +33,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
-RUN npm install -g @playwright/mcp@latest @playwright/cli@latest playwright@latest \
-    && playwright-cli --help \
-    && playwright install --with-deps chromium \
-    && rm -rf /var/lib/apt/lists/*
+
+# Playwright/Chromium을 builder에서 복사
+COPY --from=builder /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=builder /usr/local/bin/playwright* /usr/local/bin/
+COPY --from=builder /root/.cache/ms-playwright /root/.cache/ms-playwright
+ENV PATH="/usr/local/bin:${PATH}"
 
 WORKDIR /app
 COPY --from=builder /src/dist/amd64/artex /app/artex
