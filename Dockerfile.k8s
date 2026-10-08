@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1
+# Jenkins(k3s dind)용 전체 빌드 이미지: 프론트엔드 정적 빌드 + Go 단일 바이너리 + 런타임.
+# 상류 Dockerfile은 사전 컴파일된 바이너리만 넣는 실행용이라, 여기서 빌드까지 포함한다.
+FROM golang:1.26-bookworm AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends rsync curl ca-certificates && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+COPY . /src/
+
+# 1) Next.js 정적 내보내기 (devDependencies 포함: NODE_ENV=production 이면 모듈 누락)
+WORKDIR /src/web
+ENV NPM_CONFIG_CACHE=/tmp/.npm
+RUN npm ci --include=dev && NEXT_EXPORT=1 npm run build
+
+# 2) 프론트엔드를 서버에 임베드하고 단일 바이너리 컴파일
+WORKDIR /src
+RUN mkdir -p server/webui/dist && \
+    rsync -a --delete web/out/ server/webui/dist/ && \
+    CGO_ENABLED=0 go build -tags embedui -o dist/amd64/artex ./cmd/artex
+
+FROM python:3.12-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates ripgrep curl wget vim git jq unzip \
+      dnsutils iputils-ping netcat-openbsd inetutils-telnet whois nmap \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+RUN npm install -g @playwright/mcp@latest @playwright/cli@latest playwright@latest \
+    && playwright-cli --help \
+    && playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=builder /src/dist/amd64/artex /app/artex
+COPY start.sh /app/start.sh
+RUN chmod +x /app/artex /app/start.sh
+COPY skills/ /app/skills/
+VOLUME ["/app/data"]
+EXPOSE 8787 8788
+ENTRYPOINT ["/app/start.sh"]
+CMD ["-addr", ":8787"]
