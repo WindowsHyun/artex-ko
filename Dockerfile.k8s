@@ -1,24 +1,22 @@
 # syntax=docker/dockerfile:1
-# Jenkins(k3s dind)용 전체 빌드 이미지: 프론트엔드 정적 빌드 + Go 단일 바이너리 + Playwright/Chromium 포함.
+# Jenkins(k3s dind)용 전체 빌드 이미지: 프론트엔드 정적 빌드 + Go 단일 바이너리 컴파일 후 상류 런타임 이미지 규격으로 패키징.
 FROM golang:1.26-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends rsync curl ca-certificates && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-# Playwright/Chromium을 빌드 단계에서 미리 설치 (네트워크가 되는 단계에서)
-RUN npm install -g @playwright/mcp@latest @playwright/cli@latest playwright@latest \
-    && playwright-cli --help \
-    && playwright install --with-deps chromium \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /src
 COPY . /src/
 
-# 1) Next.js 정적 내보내기 (devDependencies 포함)
+# 1) Next.js 정적 내보내기 (devDependencies 포함: NODE_ENV=production 이면 모듈 누락)
 WORKDIR /src/web
 ENV NPM_CONFIG_CACHE=/tmp/.npm
-RUN npm ci --include=dev && NEXT_EXPORT=1 npm run build
+# dind 네트워크가 불안정해 npm ci 자체 재시도
+RUN npm ci --include=dev --fetch-retries=5 --fetch-retry-maxtimeout=120000 || \
+    (sleep 15 && npm ci --include=dev --fetch-retries=5 --fetch-retry-maxtimeout=120000) || \
+    (sleep 45 && npm ci --include=dev --fetch-retries=5 --fetch-retry-maxtimeout=120000)
+RUN NEXT_EXPORT=1 npm run build
 
 # 2) 프론트엔드를 서버에 임베드하고 단일 바이너리 컴파일
 WORKDIR /src
@@ -26,6 +24,7 @@ RUN mkdir -p server/webui/dist && \
     rsync -a --delete web/out/ server/webui/dist/ && \
     CGO_ENABLED=0 go build -tags embedui -o dist/amd64/artex ./cmd/artex
 
+# 런타임: 상류 Dockerfile과 동일 (npm 네트워크 flaky → 재시도 루프)
 FROM python:3.12-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates ripgrep curl wget vim git jq unzip \
@@ -33,12 +32,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
-
-# Playwright/Chromium을 builder에서 복사
-COPY --from=builder /usr/local/lib/node_modules /usr/local/lib/node_modules
-COPY --from=builder /usr/local/bin/playwright* /usr/local/bin/
-COPY --from=builder /root/.cache/ms-playwright /root/.cache/ms-playwright
-ENV PATH="/usr/local/bin:${PATH}"
+RUN for i in 1 2 3 4 5; do \
+      npm install -g --fetch-retries=5 --fetch-retry-maxtimeout=120000 \
+        @playwright/mcp@latest @playwright/cli@latest playwright@latest && break; \
+      sleep 20; \
+    done && \
+    playwright-cli --help && \
+    playwright install --with-deps chromium && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=builder /src/dist/amd64/artex /app/artex
