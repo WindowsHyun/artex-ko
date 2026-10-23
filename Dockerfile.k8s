@@ -2,7 +2,7 @@
 # Jenkins(k3s dind)용 전체 빌드 이미지: 프론트엔드 정적 빌드 + Go 단일 바이너리 컴파일 후 상류 런타임 이미지 규격으로 패키징.
 FROM golang:1.26-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends rsync curl ca-certificates && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
 
@@ -29,7 +29,7 @@ FROM python:3.12-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates ripgrep curl wget vim git jq unzip \
       dnsutils iputils-ping netcat-openbsd inetutils-telnet whois nmap \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 RUN for i in 1 2 3 4 5; do \
