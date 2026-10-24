@@ -32,6 +32,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
+RUN printf 'pip==26.2.2 --hash=sha256:fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70\n' > /tmp/pip-requirements.txt && \
+    python -m pip install --no-cache-dir --upgrade --require-hashes -r /tmp/pip-requirements.txt && \
+    python -m pip --version && \
+    rm -f /tmp/pip-requirements.txt
 RUN for i in 1 2 3 4 5; do \
       npm install -g --fetch-retries=5 --fetch-retry-maxtimeout=120000 npm@12.2.1 && break; \
       sleep 20; \
@@ -59,6 +63,22 @@ RUN set -eux; \
     test "$(node -p "require('$undici_dir/package.json').version")" = "6.29.1"; \
     test "$(npm --version)" = "12.2.1"; \
     rm -f /tmp/undici-6.29.1.tgz
+
+# ip-address 10.7.2 is vulnerable; replace every global npm copy with the patched upstream tarball.
+RUN set -eux; \
+    npm_root="$(npm root -g)"; \
+    curl -fsSL https://registry.npmjs.org/ip-address/-/ip-address-10.7.4.tgz -o /tmp/ip-address-10.7.4.tgz; \
+    echo "0d604c2b278cdb90fbd27ac889392042d879f7f1be9da28e4dea7a86e17d8fe1a678adc3303eb466fc60e5de6a427cfedfc007828bba79a9f62c4097fa5aca0e  /tmp/ip-address-10.7.4.tgz" | sha512sum -c -; \
+    find "$npm_root" -type f -path '*/ip-address/package.json' -print > /tmp/ip-address-package-files; \
+    test -s /tmp/ip-address-package-files; \
+    while IFS= read -r package_json; do \
+      package_dir="${package_json%/package.json}"; \
+      rm -rf "$package_dir"; \
+      mkdir -p "$package_dir"; \
+      tar -xzf /tmp/ip-address-10.7.4.tgz --strip-components=1 -C "$package_dir"; \
+      test "$(node -p "require('$package_dir/package.json').version")" = "10.7.4"; \
+    done < /tmp/ip-address-package-files; \
+    rm -f /tmp/ip-address-10.7.4.tgz /tmp/ip-address-package-files
 
 WORKDIR /app
 COPY --from=builder /src/dist/amd64/artex /app/artex
