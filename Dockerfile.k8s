@@ -46,6 +46,12 @@ RUN for i in 1 2 3 4 5; do \
     playwright install --with-deps chromium && \
     rm -rf /var/lib/apt/lists/*
 
+# npm 12.2.1 bundles vulnerable undici 6.29.0; replace it with the patched release.
+RUN npm_dir="$(npm root -g)/npm" && \
+    npm install --prefix "$npm_dir" --no-save --package-lock=false undici@6.29.1 && \
+    test "$(node -p "require('$npm_dir/node_modules/undici/package.json').version")" = "6.29.1" && \
+    test "$(npm --version)" = "12.2.1"
+
 WORKDIR /app
 COPY --from=builder /src/dist/amd64/artex /app/artex
 COPY start.sh /app/start.sh
