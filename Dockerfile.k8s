@@ -1,9 +1,10 @@
 # syntax=docker/dockerfile:1
 # Jenkins(k3s dind)용 전체 빌드 이미지: 프론트엔드 정적 빌드 + Go 단일 바이너리 컴파일 후 상류 런타임 이미지 규격으로 패키징.
-FROM golang:1.26-bookworm AS builder
+FROM golang:1.27.3-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends rsync curl ca-certificates && \
     curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
+    node -e 'const [major, minor, patch] = process.versions.node.split(".").map(Number); if (major !== 22 || minor < 23 || (minor === 23 && patch < 4)) throw new Error("Node 22.23.4+ required")' && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
@@ -31,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       dnsutils iputils-ping netcat-openbsd inetutils-telnet whois nmap \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
+    && node -e 'const [major, minor, patch] = process.versions.node.split(".").map(Number); if (major !== 22 || minor < 23 || (minor === 23 && patch < 4)) throw new Error("Node 22.23.4+ required")' \
     && rm -rf /var/lib/apt/lists/*
 RUN for i in 1 2 3 4 5; do \
       npm install -g --fetch-retries=5 --fetch-retry-maxtimeout=120000 \
