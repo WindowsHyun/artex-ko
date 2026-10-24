@@ -25,7 +25,7 @@ RUN mkdir -p server/webui/dist && \
     CGO_ENABLED=0 go build -tags embedui -o dist/amd64/artex ./cmd/artex
 
 # 런타임: 상류 Dockerfile과 동일 (npm 네트워크 flaky → 재시도 루프)
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-trixie
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates ripgrep curl wget vim git jq unzip \
       dnsutils iputils-ping netcat-openbsd inetutils-telnet whois nmap \
@@ -33,6 +33,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 RUN for i in 1 2 3 4 5; do \
+      npm install -g --fetch-retries=5 --fetch-retry-maxtimeout=120000 npm@12.2.1 && break; \
+      sleep 20; \
+    done && \
+    test "$(npm --version)" = "12.2.1" && \
+    for i in 1 2 3 4 5; do \
       npm install -g --fetch-retries=5 --fetch-retry-maxtimeout=120000 \
         @playwright/mcp@latest @playwright/cli@latest playwright@latest && break; \
       sleep 20; \
