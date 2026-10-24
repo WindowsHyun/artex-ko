@@ -47,10 +47,18 @@ RUN for i in 1 2 3 4 5; do \
     rm -rf /var/lib/apt/lists/*
 
 # npm 12.2.1 bundles vulnerable undici 6.29.0; replace it with the patched release.
-RUN npm_dir="$(npm root -g)/npm" && \
-    npm install --prefix "$npm_dir" --no-save --package-lock=false undici@6.29.1 && \
-    test "$(node -p "require('$npm_dir/node_modules/undici/package.json').version")" = "6.29.1" && \
-    test "$(npm --version)" = "12.2.1"
+RUN set -eux; \
+    npm_dir="$(npm root -g)/npm"; \
+    undici_dir="$npm_dir/node_modules/undici"; \
+    test "$(node -p "require('$npm_dir/package.json').version")" = "12.2.1"; \
+    curl -fsSL https://registry.npmjs.org/undici/-/undici-6.29.1.tgz -o /tmp/undici-6.29.1.tgz; \
+    echo "12f46552dfd0a8012f5dd41e44c6147f0390b1fce90f3b7292b1b6a3018413fac1381a18bfdb85dfd673b0d0e1e254c51e14ebd973998ca91882e783d7666618  /tmp/undici-6.29.1.tgz" | sha512sum -c -; \
+    rm -rf "$undici_dir"; \
+    mkdir -p "$undici_dir"; \
+    tar -xzf /tmp/undici-6.29.1.tgz --strip-components=1 -C "$undici_dir"; \
+    test "$(node -p "require('$undici_dir/package.json').version")" = "6.29.1"; \
+    test "$(npm --version)" = "12.2.1"; \
+    rm -f /tmp/undici-6.29.1.tgz
 
 WORKDIR /app
 COPY --from=builder /src/dist/amd64/artex /app/artex
