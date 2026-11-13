@@ -4,11 +4,11 @@
 
 **An autonomous penetration-testing system driven by LLM multi-agents** (Go backend + Next.js frontend)
 
-The UI and generated output default to Korean, and **can be switched to English, Chinese or Spanish in Settings (System → Settings → Display language).** Changing the language also changes the language of agent-generated reports, summaries and chat replies.
+The UI and generated output default to Korean, and **can be switched to English, Chinese, Spanish or Japanese in Settings (System → Settings → Display language).** Changing the language also changes the language of agent-generated reports, summaries and chat replies.
 
-[한국어](README.md) · [中文](README.zh.md) · English
+[한국어](README.md) · [中文](README.zh.md) · [Español](README.es.md) · [日本語](README.ja.md) · English
 
-[![ci](https://github.com/jiwoochris/artex-ko/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jiwoochris/artex-ko/actions/workflows/ci.yml) [![detections](https://github.com/jiwoochris/artex-ko/actions/workflows/detections.yml/badge.svg?branch=main)](https://github.com/jiwoochris/artex-ko/actions/workflows/detections.yml) [![web](https://github.com/jiwoochris/artex-ko/actions/workflows/web.yml/badge.svg?branch=main)](https://github.com/jiwoochris/artex-ko/actions/workflows/web.yml) [![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![ci](https://github.com/WindowsHyun/artex-ko/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/WindowsHyun/artex-ko/actions/workflows/ci.yml) [![detections](https://github.com/WindowsHyun/artex-ko/actions/workflows/detections.yml/badge.svg?branch=main)](https://github.com/WindowsHyun/artex-ko/actions/workflows/detections.yml) [![web](https://github.com/WindowsHyun/artex-ko/actions/workflows/web.yml/badge.svg?branch=main)](https://github.com/WindowsHyun/artex-ko/actions/workflows/web.yml) [![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
 </div>
 
@@ -94,7 +94,7 @@ The original (Chinese UI) screens are available in [`README.zh.md`](README.zh.md
 > **Image:** the `artex` service in `docker-compose.yml` pulls `ghcr.io/jiwoochris/artex-ko`, the Korean-edition image this repository publishes to GitHub Container Registry on every release tag (`v*`). The default tag is `latest` (the most recent release); set `ARTEX_TAG` in `.env` to pin a specific release. Upstream's original image `autumn27/artex` has been taken down from Docker Hub and is no longer used.
 
 ```bash
-git clone https://github.com/jiwoochris/artex-ko.git
+git clone https://github.com/WindowsHyun/artex-ko.git
 cd artex-ko
 cp .env.example .env          # set POSTGRES_PASSWORD; ANTHROPIC_API_KEY is optional
 docker compose up -d          # brings up the artex image + postgres together
@@ -155,6 +155,9 @@ The Korean localization is **driven by a prompt directive (`langDirective()` in 
 - **Give reasoning models a generous `max_tokens`.** A reasoning model that uses a separate thinking channel can spend a small response-token budget entirely on internal reasoning and leave the user-facing final answer empty. Here the answer itself disappears rather than the language, so set that LLM profile's `max_tokens` high enough.
 
 > **Token-cap pitfall on the OpenAI-compatible path.** OpenAI-family models such as `gpt-4o` cap response tokens at 16,384. OpenAI-compatible requests, however, carry a larger default output cap (32,768), so leaving it unchanged makes every call fail with `400 (max_tokens is too large)`. In that case, **set that profile's `max_tokens` to 16,384 or lower on the LLM settings page.** Anthropic-family models (including the default `claude-opus-4-8`) allow 32,768 and do not hit this pitfall.
+
+### Worker concurrency
+You can adjust the number of worker agents per task under System settings. The default is 3.
 
 ### First-run protection (setup token and bind address)
 

@@ -4,11 +4,11 @@
 
 **LLM 멀티 에이전트가 자율적으로 침투 테스트를 수행하는 시스템** (Go 백엔드 + Next.js 프런트엔드)
 
-화면과 산출물은 한국어가 기본이며, **설정(시스템 → 설정 → 표시 언어)에서 영어·중국어·스페인어로도 바꿀 수 있습니다.** 언어를 바꾸면 에이전트가 생성하는 리포트·요약·대화 응답의 언어도 함께 바뀝니다.
+화면과 산출물은 한국어가 기본이며, **설정(시스템 → 설정 → 표시 언어)에서 영어·중국어·스페인어·일본어로도 바꿀 수 있습니다.** 언어를 바꾸면 에이전트가 생성하는 리포트·요약·대화 응답의 언어도 함께 바뀝니다.
 
-한국어 · [中文](README.zh.md) · [English](README.en.md)
+한국어 · [English](README.en.md) · [中文](README.zh.md) · [Español](README.es.md) · [日本語](README.ja.md)
 
-[![ci](https://github.com/jiwoochris/artex-ko/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jiwoochris/artex-ko/actions/workflows/ci.yml) [![detections](https://github.com/jiwoochris/artex-ko/actions/workflows/detections.yml/badge.svg?branch=main)](https://github.com/jiwoochris/artex-ko/actions/workflows/detections.yml) [![web](https://github.com/jiwoochris/artex-ko/actions/workflows/web.yml/badge.svg?branch=main)](https://github.com/jiwoochris/artex-ko/actions/workflows/web.yml) [![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![ci](https://github.com/WindowsHyun/artex-ko/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/WindowsHyun/artex-ko/actions/workflows/ci.yml) [![detections](https://github.com/WindowsHyun/artex-ko/actions/workflows/detections.yml/badge.svg?branch=main)](https://github.com/WindowsHyun/artex-ko/actions/workflows/detections.yml) [![web](https://github.com/WindowsHyun/artex-ko/actions/workflows/web.yml/badge.svg?branch=main)](https://github.com/WindowsHyun/artex-ko/actions/workflows/web.yml) [![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
 </div>
 
@@ -101,7 +101,7 @@ ARTEX 는 **자신이 소유하거나 서면으로 명시적 허가를 받은 �
 > **이미지:** `docker-compose.yml` 의 `artex` 서비스는 이 저장소가 릴리스 태그(`v*`)마다 GitHub Container Registry 에 발행하는 한국어판 이미지 `ghcr.io/jiwoochris/artex-ko` 를 받습니다. 기본 태그는 `latest`(가장 최근 릴리스)이고, `.env` 의 `ARTEX_TAG` 로 특정 릴리스에 고정할 수 있습니다. 원본 저장소의 이미지 `autumn27/artex` 는 Docker Hub 에서 내려가 더는 쓰지 않습니다.
 
 ```bash
-git clone https://github.com/jiwoochris/artex-ko.git
+git clone https://github.com/WindowsHyun/artex-ko.git
 cd artex-ko
 cp .env.example .env          # POSTGRES_PASSWORD 설정, ANTHROPIC_API_KEY 는 선택
 docker compose up -d          # artex 이미지 + postgres 를 함께 기동
@@ -160,6 +160,9 @@ docker compose up -d          # artex 이미지 + postgres 를 함께 기동
 - **추론형(reasoning) 모델에는 `max_tokens` 를 넉넉히 주십시오.** 사고 채널을 따로 쓰는 추론형 모델은 응답 토큰 상한이 작으면 그 예산을 내부 추론에 소진하고 사용자에게 보이는 최종 답변을 비워 둘 수 있습니다. 이때는 언어가 아니라 답변 자체가 사라지므로, 해당 LLM 프로파일의 `max_tokens` 를 충분히 크게 잡으십시오.
 
 > **OpenAI 호환 경로의 토큰 상한 함정.** `gpt-4o` 처럼 OpenAI 계열 모델은 응답 토큰 상한이 16,384 입니다. 그런데 OpenAI 호환 요청에는 기본적으로 더 큰 출력 상한(32,768)이 실려, 그대로 두면 모든 호출이 `400 (max_tokens is too large)` 으로 실패합니다. 이때는 **LLM 설정에서 해당 프로파일의 `max_tokens` 를 16,384 이하로 지정**하십시오. Anthropic 계열(기본 모델 `claude-opus-4-8` 등)은 32,768 을 허용하므로 이 함정에 걸리지 않습니다.
+
+### 작업 동시성
+시스템 설정에서 작업당 worker agent 수를 조정할 수 있으며 기본값은 3입니다.
 
 ### 초기 설정 보호 (첫 실행 토큰과 바인딩 주소)
 

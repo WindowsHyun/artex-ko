@@ -26,8 +26,10 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getDateLocale } from "@/i18n/datetime";
 import { useAgentNameByKey } from "@/lib/agent-i18n";
 import { api } from "@/lib/api";
+import { useBuiltinLabels } from "@/lib/builtin-i18n";
 import type {
   InterceptApprovalFilter,
   InterceptApprovalRow,
@@ -41,7 +43,7 @@ type Translator = ReturnType<typeof useTranslations>;
 
 function fmtTime(value?: string) {
   if (!value) return "—";
-  return new Date(value).toLocaleString("ko-KR", {
+  return new Date(value).toLocaleString(getDateLocale(), {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -114,6 +116,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function MatchCell({ row, showReason = true }: { row: InterceptApprovalRow; showReason?: boolean }) {
   const t = useTranslations("approval");
+  const builtinLabels = useBuiltinLabels();
   const reason = row.reason?.replace(/^\[模型\]\s*/, "");
   return (
     <div className="flex min-w-0 flex-col gap-1">
@@ -123,7 +126,7 @@ function MatchCell({ row, showReason = true }: { row: InterceptApprovalRow; show
           {t("modelDecision")}
         </Badge>
       ) : (
-        <span className="truncate">{row.rule_name || t("ruleMissing")}</span>
+        <span className="truncate">{row.rule_name ? builtinLabels.ruleName(row.rule_name) : t("ruleMissing")}</span>
       )}
       {showReason ? (
         <p className="truncate text-muted-foreground text-xs" title={reason}>
@@ -301,6 +304,7 @@ export function ApprovalDetail({
   onResolved?: (status: "allowed" | "denied" | "timeout") => void;
 }) {
   const t = useTranslations("approval");
+  const builtinLabels = useBuiltinLabels();
   const agentNameOf = useAgentNameByKey();
   const [detail, setDetail] = React.useState<InterceptDetail | null>(null);
   const [error, setError] = React.useState("");
@@ -398,7 +402,7 @@ export function ApprovalDetail({
             {audit?.rule_name ? (
               <>
                 <dt className="text-muted-foreground">{t("ruleSnapshot")}</dt>
-                <dd>{audit.rule_name}</dd>
+                <dd>{builtinLabels.ruleName(audit.rule_name)}</dd>
               </>
             ) : null}
             {audit?.profile_id ? (

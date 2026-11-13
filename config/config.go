@@ -29,18 +29,18 @@ type Config struct {
 	Database Database `json:"database"`
 	SkillDir string   `json:"skill_dir"`
 	// Language is the bootstrap/default user-facing output language for the
-	// artex-ko ("en"/"ko"/"zh"/"es"). Empty → DefaultLanguage. At
+	// artex-ko ("en"/"ko"/"zh"/"es"/"ja"). Empty → DefaultLanguage. At
 	// runtime a value stored in the settings table (edited in the UI) overrides it.
 	Language string `json:"language"`
 }
 
 // SupportedLanguages lists the user-facing output languages artex-ko can
 // switch between. Agent output, UI strings and backend messages all key off these.
-var SupportedLanguages = []string{"en", "ko", "zh", "es"}
+var SupportedLanguages = []string{"en", "ko", "zh", "es", "ja"}
 
 // DefaultLanguage is the out-of-box user-facing language when nothing is
-// configured. artex-ko defaults to Korean; English, Chinese and Spanish are
-// selectable at runtime via the language setting (and ARTEX_LANG).
+// configured. artex-ko defaults to English; Korean, Chinese, Spanish and
+// Japanese are selectable at runtime via the language setting (and ARTEX_LANG).
 const DefaultLanguage = "ko"
 
 // NormalizeLanguage lower-cases and validates a language code, returning "" when
@@ -200,16 +200,16 @@ func SkillDir() string {
 // DSN came from (for startup logging).
 func PostgresDSN() (dsn, source string, err error) {
 	if v := strings.TrimSpace(os.Getenv("ARTEX_PG_DSN")); v != "" {
-		return v, trCfg("환경 변수 ARTEX_PG_DSN"), nil
+		return v, "environment variable ARTEX_PG_DSN", nil
 	}
 	db := Load().Database
 	if d := strings.TrimSpace(db.DSN); d != "" {
-		return d, fmt.Sprintf(trCfg("설정 파일 %s (database.dsn)"), Path()), nil
+		return d, fmt.Sprintf("config file %s (database.dsn)", Path()), nil
 	}
 	if db.Host != "" || db.DBName != "" || db.User != "" {
-		return db.buildDSN(), fmt.Sprintf(trCfg("설정 파일 %s (database 필드)"), Path()), nil
+		return db.buildDSN(), fmt.Sprintf("config file %s (database fields)", Path()), nil
 	}
-	return "", "", fmt.Errorf(trCfg("데이터베이스 설정을 찾을 수 없습니다: 환경 변수 ARTEX_PG_DSN 이 설정되어 있지 않고, 설정 파일 %s 에도 database (dsn 또는 host/user/dbname) 설정이 없습니다. 설정 파일을 만들거나 환경 변수를 설정한 뒤 다시 시도하세요"), Path())
+	return "", "", fmt.Errorf("database configuration not found: environment variable ARTEX_PG_DSN is not set, and config file %s has no database (dsn or host/user/dbname) configuration. Create a config file or set the environment variable, then try again", Path())
 }
 
 func (d Database) buildDSN() string {

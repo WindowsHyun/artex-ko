@@ -5,6 +5,8 @@
 AI 自主渗透测试系统（Go 后端 + Next.js 前端）
 
 
+简体中文 · [한국어](README.md) · [English](README.en.md) · [Español](README.es.md) · [日本語](README.ja.md)
+
 🌐 **在线 Demo**： [https://artex-demo.vercel.app/](https://artex-demo.vercel.app/)
 
 </div>
@@ -225,6 +227,9 @@ CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
 **并发**：每个任务的 work agent 数在「系统设置」里配置（默认 3）。
 
 **常用参数**：`./start.sh -addr :8787 -proxy :8788`（`-addr` 前端+API，`-proxy` 流量录制代理）。启动脚本会把参数原样透传给 `artex`。本分支中 `-addr` 默认值为 `127.0.0.1:8787`（仅本机），需要从其他机器访问时请显式指定如 `:8787`。
+
+### 并发任务
+可在“系统设置”中调整每个任务使用的 worker agent 数量，默认值为 3。
 
 ### 首次运行保护（设置令牌与绑定地址，本分支新增）
 

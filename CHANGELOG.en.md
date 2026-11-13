@@ -12,6 +12,12 @@ The upstream ARTEX project's per-version release history (0.3.x and earlier) and
 
 - **Show built-in agent names and descriptions per language.** The built-in agents (goal decomposition, planning, main, execution, Auto, penetration test, vulnerability retest) are DB seed data (`builtinAgents` in `db/db.go` and the retest agent in `server/finding_retests.go`), so their names, descriptions, and prompt-variable labels used to appear only in Chinese. They are now looked up by agent `key` in `web/messages/` and shown in the current language (falling back to the DB value). User-created agents keep showing their DB values. Applied to the agent list, the editor drawer, and the chat screen; approval/intercept records that come from a chat now show the agent name instead of its internal key (e.g. `pentest`).
 
+- **Server console logs and the startup banner are now always English,** regardless of the display language, and a test fails if a non-ASCII message enters a log call. Runtime values such as model-written text and target names are printed as they are.
+- **Built-in block rules, asset rule notes, and tool descriptions now follow the display language.** A value is translated only while it still matches its DB seed text, so user edits stay as written, and the text sent to the model is unchanged.
+- **Added Spanish documentation.** Translated `README.es.md` from the English README into natural Spanish and added a Spanish link to the language navigation of all five READMEs (English, Korean, Chinese, Spanish, Japanese). Code, commands, payloads, URLs and identifiers are preserved; only descriptive text is translated.
+- **Added Japanese (ja) across the whole localization stack.** Japanese joins the app's supported languages and can be selected in Settings. UI messages (`web/messages/ja.json`), the date locale (`ja-JP`), the agent output language, and the settings and server message catalogs (`config/msg_i18n.go`, `server/errmsg_catalog.go`) are translated into Japanese, while the agents' internal reasoning prompts stay in their original language as for every other locale. For docs, `README.ja.md` was added and the language navigation and supported-language notes across all five READMEs were updated to include Japanese.
+### Fixed
+- Distinguish task report loading failures from empty reports and offer a retry button. Late responses from a previous task cannot replace the current task report.
 ## [0.3.15-ko.1] · 2026-10-12 · First Korean-edition release
 
 The first release of the Korean edition, based on upstream ARTEX 0.3.15.
