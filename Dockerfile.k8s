@@ -25,16 +25,25 @@ RUN mkdir -p server/webui/dist && \
     rsync -a --delete web/out/ server/webui/dist/ && \
     CGO_ENABLED=0 go build -tags embedui -o dist/amd64/artex ./cmd/artex
 
-# 런타임: 상류 Dockerfile과 동일 (npm 네트워크 flaky → 재시도 루프)
-FROM python:3.12-slim-bookworm
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates ripgrep curl wget vim git jq unzip \
-      dnsutils iputils-ping netcat-openbsd inetutils-telnet whois nmap \
+# K8s 런타임은 libxml2 수정판이 있는 Ubuntu Noble을 사용한다. 내장 skill은 pip/dnsutils를 호출하지 않는다.
+FROM ubuntu:24.04
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      ca-certificates python3 python-is-python3 ripgrep curl wget vim git jq unzip \
+      iputils-ping netcat-openbsd inetutils-telnet whois nmap \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && node -e 'const [major, minor, patch] = process.versions.node.split(".").map(Number); if (major !== 22 || minor < 23 || (minor === 23 && patch < 4)) throw new Error("Node 22.23.4+ required")' \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nodejs \
+    && node_version="$(node -p 'process.versions.node')" \
+    && dpkg --compare-versions "$node_version" ge 22.23.4 \
+    && python3 --version \
     && rm -rf /var/lib/apt/lists/*
 RUN for i in 1 2 3 4 5; do \
+      npm install -g --fetch-retries=5 --fetch-retry-maxtimeout=120000 npm@12.2.1 && break; \
+      sleep 20; \
+    done && \
+    test "$(npm --version)" = "12.2.1" && \
+    for i in 1 2 3 4 5; do \
       npm install -g --fetch-retries=5 --fetch-retry-maxtimeout=120000 \
         @playwright/mcp@latest @playwright/cli@latest playwright@latest && break; \
       sleep 20; \
@@ -42,6 +51,36 @@ RUN for i in 1 2 3 4 5; do \
     playwright-cli --help && \
     playwright install --with-deps chromium && \
     rm -rf /var/lib/apt/lists/*
+
+# npm 12.2.1 bundles vulnerable undici 6.29.0; replace it with the patched release.
+RUN set -eux; \
+    npm_dir="$(npm root -g)/npm"; \
+    undici_dir="$npm_dir/node_modules/undici"; \
+    test "$(node -p "require('$npm_dir/package.json').version")" = "12.2.1"; \
+    curl -fsSL https://registry.npmjs.org/undici/-/undici-6.29.1.tgz -o /tmp/undici-6.29.1.tgz; \
+    echo "12f46552dfd0a8012f5dd41e44c6147f0390b1fce90f3b7292b1b6a3018413fac1381a18bfdb85dfd673b0d0e1e254c51e14ebd973998ca91882e783d7666618  /tmp/undici-6.29.1.tgz" | sha512sum -c -; \
+    rm -rf "$undici_dir"; \
+    mkdir -p "$undici_dir"; \
+    tar -xzf /tmp/undici-6.29.1.tgz --strip-components=1 -C "$undici_dir"; \
+    test "$(node -p "require('$undici_dir/package.json').version")" = "6.29.1"; \
+    test "$(npm --version)" = "12.2.1"; \
+    rm -f /tmp/undici-6.29.1.tgz
+
+# ip-address 10.7.2 is vulnerable; replace every global npm copy with the patched upstream tarball.
+RUN set -eux; \
+    npm_root="$(npm root -g)"; \
+    curl -fsSL https://registry.npmjs.org/ip-address/-/ip-address-10.7.4.tgz -o /tmp/ip-address-10.7.4.tgz; \
+    echo "0d604c2b278cdb90fbd27ac889392042d879f7f1be9da28e4dea7a86e17d8fe1a678adc3303eb466fc60e5de6a427cfedfc007828bba79a9f62c4097fa5aca0e  /tmp/ip-address-10.7.4.tgz" | sha512sum -c -; \
+    find "$npm_root" -type f -path '*/ip-address/package.json' -print > /tmp/ip-address-package-files; \
+    test -s /tmp/ip-address-package-files; \
+    while IFS= read -r package_json; do \
+      package_dir="${package_json%/package.json}"; \
+      rm -rf "$package_dir"; \
+      mkdir -p "$package_dir"; \
+      tar -xzf /tmp/ip-address-10.7.4.tgz --strip-components=1 -C "$package_dir"; \
+      test "$(node -p "require('$package_dir/package.json').version")" = "10.7.4"; \
+    done < /tmp/ip-address-package-files; \
+    rm -f /tmp/ip-address-10.7.4.tgz /tmp/ip-address-package-files
 
 WORKDIR /app
 COPY --from=builder /src/dist/amd64/artex /app/artex
